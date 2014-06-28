@@ -1,0 +1,136 @@
+
+<link rel="stylesheet" type="text/css" href="jquery.qtip.css">
+
+<script type="text/javascript" src="jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="raphael-2.1.0.min.js"></script>
+<script type="text/javascript" src="jquery.qtip.min.js"></script>
+<script type="text/javascript" src="kartograph.js"></script>
+
+<script type="text/javascript">
+
+var map1;
+var map2;
+$(function() {
+
+    // initialize tooltips
+    $.fn.qtip.defaults.style.classes = 'ui-tooltip-bootstrap';
+    $.fn.qtip.defaults.style.def = false;
+
+    $.getJSON('vendor_info.json', function(cities) {
+
+        function map(cont, clustering, zm) {
+
+            var map = kartograph.map(cont);
+
+            map.loadMap('KEN3.svg', function() {
+                map.addLayer('context', {
+                    styles: {
+                        stroke: '#aaa',
+                        fill: '#f6f4f2'
+                    }
+                });
+                map.addLayer('regions', {
+                    id: 'bg',
+                    styles: {
+                        stroke: '#8d6d4',
+                        'stroke-width': 10,
+                        'stroke-linejoin': 'round'
+                    }
+                });
+
+                map.addLayer('regions', {
+                    title: function(d) { return d.name },
+                    styles: {
+                        stroke: '#333',
+                        fill: '#fff'
+                    }
+                });
+
+                var scale = kartograph.scale.sqrt(cities.concat([{ sales_count: 0 }]), 'sales_count').range([2, 30]);
+
+                map.addSymbols({
+                    type: kartograph.Bubble,
+                    data: cities,
+                    clustering: clustering,
+                    aggregate: function(cities) {
+                        var nc = { sales_count: 0, vendor_names: [] };
+                        $.each(cities, function(i, c) {
+                            nc.sales_count += c.sales_count;
+                            nc.vendor_names = nc.vendor_names.concat(c.vendor_names ? c.vendor_names : [c.vendor_name]);
+                        });
+                        nc.vendor_name = nc.vendor_names[0] + ' and ' + (nc.vendor_names.length-1) + ' others';
+                        return nc;
+                    },
+                    location: function(city) {
+                        return [city.long, city.lat];
+                    },
+                    radius: function(city) {
+                        return scale(city.sales_count);
+                    },
+                    tooltip: function(city) {
+                        return '<h3>'+city.vendor_name+'</h3>'+city.sales_count+' total sales';
+                    },
+                    sortBy: 'radius desc',
+                    style: 'fill:#800; stroke: #fff; fill-opacity: 0.5;',
+                });
+            }, { padding: -75 });
+         return map;
+        }
+
+        map1 = map('#map0','',3);
+        map2 = map('#map2', '',1);
+    });
+
+});
+
+var zoomed = 0;
+function zoom(){
+if (zoomed==0) {
+ map2.proj.phi0 = -0.023;
+ map2.proj.lam0 = 0.6425;
+ map2.proj.scale = 10;
+ map2.resize();
+ zoomed = 1;
+} else {
+ map2.proj.phi0 = 0.013264;
+ map2.proj.lam0 = 0.64053;
+ map2.proj.scale = 0.70711;
+ map2.resize();
+ zoomed = 0;
+}
+}
+</script>
+
+<style type="text/css">
+.uk-map {
+    width: 41%;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: top;
+}
+.uk-map label {
+    text-align: center;
+    font-style: italic;
+}
+.uk-map div {
+    height: 600px;
+    border: 1px solid #bbb;
+    margin-bottom: 1em;
+}
+</style>
+
+<div class="uk-map">
+    <div id="map2"></div>
+    <p><b>Country View</b> Sales per vendor are shown</p>
+    <p><input type='button' onclick='zoom()' value='Toggle Zoom'/></p>
+    <p><b>Note:</b> Zoom shows detail around Nairobi, but does not update map</p>
+</div>
+<!--
+<div class="uk-map">
+    <div id="map0"></div>
+    <p><b>Detail View</b>Shows zoom in around Nairobi (note: map boundary not updated)</p>
+    <p><input type='button' onclick='zoom()' label='Toggle Zoom'/></p>
+</div>
+-->
+<br>
+<b>Mouse over for tooltips showing sales</b>
